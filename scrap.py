@@ -106,4 +106,4 @@ else:
     print(f"No products found for '{search_query}'.")
 
 # Step 8: Close the browser session
-#browser.quit()
+browser.quit()
