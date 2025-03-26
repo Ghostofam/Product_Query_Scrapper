@@ -26,50 +26,72 @@ names = []
 links_to_product = []
 prices = []
 
-# Extract product names
-for item in page.eles('css: h2.a-size-base-plus span'):
+def extract_data():
+    """Function to extract product data from the current page."""
+    global names, links_to_product, prices
+
+    # Extract product names
+    for item in page.eles('css: h2.a-size-base-plus span'):
+        try:
+            name = item.text  # Note: Use `item.text`
+            print(name)
+            names.append(name)
+        except Exception as e:
+            print(f"Error extracting title: {e}")
+            names.append("N/A")
+
+    # Extract product links
+    for i in page.eles('css: a.s-line-clamp-4'):
+        try:
+            link = i.attr('href')
+            print(link)
+            links_to_product.append(link)
+        except Exception as e:
+            print(f"Error extracting link: {e}")
+            links_to_product.append("N/A")
+
+    # Extract product prices
+    for idx, whole_price_elem in enumerate(page.eles('css: span.a-price-whole'), start=1):
+        try:
+            whole_price = whole_price_elem.text.strip()
+        except Exception:
+            whole_price = "N/A"
+
+        try:
+            decimal_price_elem = page.ele(f'css: span.a-price-fraction')
+            decimal_price = decimal_price_elem.text.strip() if decimal_price_elem else ""
+            print(decimal_price)
+        except Exception:
+            decimal_price = ""
+
+        price = f"{whole_price}{decimal_price}" if whole_price != "N/A" else "N/A"
+        print(price)
+        prices.append(price)
+
+# Step 6: Pagination loop
+max_pages = 2  # Maximum number of pages to scrape (adjust as needed)
+current_page = 1
+
+while current_page <= max_pages:
+    print(f"\nExtracting data from page {current_page}...")
+    extract_data()
+
+    # Check if the "Next" button exists
     try:
-        # Extract the text of the <span> element directly
-        name = item.text # Note: Use `item.text`
-        print(name)
-        names.append(name)
+        next_button = page.ele('css: a.s-pagination-next')
+        if next_button:
+            print("Navigating to the next page...")
+            next_button.click()
+            time.sleep(5)  # Wait for the next page to load
+            current_page += 1
+        else:
+            print("No more pages to navigate. Stopping pagination.")
+            break
     except Exception as e:
-        # Print the exception details
-        print(f"Error extracting title: {e}")
-        names.append("N/A")
+        print(f"Error during pagination: {e}")
+        break
 
-# Extract product links
-for i in page.eles('css: a.s-line-clamp-4'):
-    try:
-        link = i.attr('href')
-        print(link)
-        links_to_product.append(link)
-    except Exception as e:
-        print(f"Error extracting link: {e}")
-        links_to_product.append("N/A")
-
-# Extract product prices
-for idx, whole_price_elem in enumerate(page.eles('css: span.a-price-whole'), start=1):
-    try:
-        # Extract the whole part of the price
-        whole_price = whole_price_elem.text.strip()
-    except Exception:
-        whole_price = "N/A"
-
-    try:
-        # Extract the decimal part of the price (if it exists)
-        decimal_price_elem = page.ele(f'css: span.a-price-fraction')
-        decimal_price = decimal_price_elem.text.strip() if decimal_price_elem else ""
-        print (decimal_price)
-    except Exception:
-        decimal_price = ""
-
-    # Combine the whole and decimal parts
-    price = f"{whole_price}{decimal_price}" if whole_price != "N/A" else "N/A"
-    print (price)
-    prices.append(price)
-
-# Step 6: Print the results
+# Step 7: Print the results
 if names:
     print(f"\nFound {len(names)} products for '{search_query}':")
     for idx, name in enumerate(names, start=1):
@@ -83,5 +105,5 @@ if names:
 else:
     print(f"No products found for '{search_query}'.")
 
-# Step 7: Close the browser session
-browser.quit()
+# Step 8: Close the browser session
+#browser.quit()
