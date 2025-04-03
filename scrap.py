@@ -94,14 +94,14 @@ while current_page <= max_pages:
         print(f"Error during pagination: {e}")
         break
 
-# Step 7: Save the extracted links to a CSV file
-csv_filename = "product_links.csv"
-with open(csv_filename, mode="w", newline="", encoding="utf-8") as file:
+# Step 7: Save the extracted Amazon links to a CSV file
+amazon_csv_filename = "amazon_product_links.csv"
+with open(amazon_csv_filename, mode="w", newline="", encoding="utf-8") as file:
     writer = csv.writer(file)
     writer.writerow(["Name", "Link", "Price"])
     for name, link, price in zip(names, links_to_product, prices):
         writer.writerow([name, link, price])
-print(f"Product links saved to {csv_filename}")
+print(f"Amazon product links saved to {amazon_csv_filename}")
 
 # Step 8: Open each link and extract additional features including Product Image and Key Features
 def extract_additional_features(link):
@@ -175,12 +175,141 @@ for idx, link in enumerate(links_to_product, start=1):
     })
 
 # Step 10: Save the additional features to a CSV file
-additional_csv_filename = "product_details.csv"
+additional_csv_filename = "amazon_product_details.csv"
 with open(additional_csv_filename, mode="w", newline="", encoding="utf-8") as file:
     writer = csv.DictWriter(file, fieldnames=["Link", "Description", "Rating", "Product ID", "Image URL", "Key Features"])
     writer.writeheader()
     writer.writerows(additional_data)
 print(f"Additional product details saved to {additional_csv_filename}")
+
+# Step 11: Scrape Alibaba and save data to CSV
+def scrape_alibaba(search_query):
+    """Scrape product data from Alibaba and save it to a CSV file."""
+    alibaba_url = f"https://www.alibaba.com/trade/search?spm=a2700.galleryofferlist.the-new-header_fy23_pc_search_bar.keydown__Enter&tab=all&SearchText={search_query.replace(' ', '+')}"
+    print(f"Searching for '{search_query}' on Alibaba...")
+    page.get(alibaba_url)
+    time.sleep(5)  # Wait for the page to load
+
+    # Lists to store Alibaba data
+    alibaba_names = []
+    alibaba_links = []
+    alibaba_prices = []
+
+    # Extract product names
+    for item in page.eles('css: h2.search-card-e-title>a>span'):
+        try:
+            name = item.text.strip()
+            print(name)
+            alibaba_names.append(name)
+        except Exception as e:
+            print(f"Error extracting title: {e}")
+            alibaba_names.append("N/A")
+
+    # Extract product links
+    for item in page.eles('css: h2.search-card-e-title>a'):
+        try:
+            link = item.attr('href')
+            print(link)
+            alibaba_links.append(link)
+        except Exception as e:
+            print(f"Error extracting link: {e}")
+            alibaba_links.append("N/A")
+
+    # Extract product prices
+    for item in page.eles('css: div.search-card-e-price-main'):
+        try:
+            price = item.text.strip()
+            print(price)
+            alibaba_prices.append(price)
+        except Exception as e:
+            print(f"Error extracting price: {e}")
+            alibaba_prices.append("N/A")
+
+    # Save the extracted Alibaba data to a CSV file
+    alibaba_csv_filename = "alibaba_product_links.csv"
+    with open(alibaba_csv_filename, mode="w", newline="", encoding="utf-8") as file:
+        writer = csv.writer(file)
+        writer.writerow(["Name", "Link", "Price"])
+        for name, link, price in zip(alibaba_names, alibaba_links, alibaba_prices):
+            writer.writerow([name, link, price])
+    print(f"Alibaba product links saved to {alibaba_csv_filename}")
+    
+    return alibaba_links
+
+def extract_alibaba_details(links):
+    """Extract detailed attributes, image, and pricing from Alibaba product pages."""
+    details_data = []
+    for idx, link in enumerate(links, start=1):
+        print(f"\nExtracting details from Alibaba product {idx}: {link}")
+        try:
+            page.get(link)
+            time.sleep(3)  # Wait for the page to load
+
+            # Extract attributes
+            attributes = []
+            for attr_item in page.eles('css: div.attribute-item'):
+                try:
+                    left = attr_item.ele('css: .left').text.strip()
+                    right = attr_item.ele('css: .right').text.strip()
+                    combined_attribute = f"{left}: {right}"
+                    attributes.append(combined_attribute)
+                except Exception as e:
+                    print(f"Error extracting attribute: {e}")
+                    continue
+
+            combined_attributes = " | ".join(attributes) if attributes else "N/A"
+
+            # Extract product image
+            try:
+                image_url = page.ele('css: div.id-relative.id-w-full > img').attr('src')
+                print(image_url)
+            except Exception:
+                image_url = "N/A"
+
+            # Extract prices by quantity
+            pricing = []
+            for qty_elem, price_elem in zip(page.eles('css: div.quality'), page.eles('css: div.price')):
+                try:
+                    quantity = qty_elem.text.strip()
+                    price = price_elem.text.strip()
+                    combined_pricing = f"Quantity: {quantity} | Price: {price}"
+                    pricing.append(combined_pricing)
+                except Exception as e:
+                    print(f"Error extracting pricing: {e}")
+                    continue
+
+            combined_pricing = " | ".join(pricing) if pricing else "N/A"
+
+            # Append the extracted data
+            details_data.append({
+                "Link": link,
+                "Attributes": combined_attributes,
+                "Image URL": image_url,
+                "Pricing": combined_pricing
+            })
+            print(f"Extracted attributes: {combined_attributes}")
+            print(f"Extracted image URL: {image_url}")
+            print(f"Extracted pricing: {combined_pricing}")
+        except Exception as e:
+            print(f"Error processing link {link}: {e}")
+            details_data.append({
+                "Link": link,
+                "Attributes": "N/A",
+                "Image URL": "N/A",
+                "Pricing": "N/A"
+            })
+
+    # Save the extracted details to a CSV file
+    details_csv_filename = "alibaba_product_details.csv"
+    with open(details_csv_filename, mode="w", newline="", encoding="utf-8") as file:
+        writer = csv.DictWriter(file, fieldnames=["Link", "Attributes", "Image URL", "Pricing"])
+        writer.writeheader()
+        writer.writerows(details_data)
+    print(f"Alibaba product details saved to {details_csv_filename}")
+
+# Step 10: Scrape Alibaba and extract details
+alibaba_links = scrape_alibaba(search_query)
+extract_alibaba_details(alibaba_links)
 
 # Step 11: Close the browser session
 browser.quit()
